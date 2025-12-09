@@ -1,0 +1,242 @@
+openapi: 3.0.3
+info:
+  title: Wallet Service API
+  version: 1.0.0
+  description: Backend wallet with Google JWT auth, API keys, Paystack deposits, transfers, and history.
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
+paths:
+  /auth/google:
+    get:
+      summary: Start Google OAuth
+      responses:
+        '302':
+          description: Redirect to Google consent
+  /auth/google/callback:
+    get:
+      summary: Exchange code, create user+wallet, return JWT
+      parameters:
+        - in: query
+          name: code
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: JWT issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                      name:
+                        type: string
+                  wallet:
+                    type: object
+                    properties:
+                      number:
+                        type: string
+                      balance:
+                        type: integer
+  /keys/create:
+    post:
+      summary: Create API key (JWT only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, permissions, expiry]
+              properties:
+                name:
+                  type: string
+                permissions:
+                  type: array
+                  items:
+                    type: string
+                    enum: [deposit, transfer, read]
+                expiry:
+                  type: string
+                  enum: [1H, 1D, 1M, 1Y]
+      responses:
+        '201':
+          description: API key created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  api_key:
+                    type: string
+                  expires_at:
+                    type: string
+  /keys/rollover:
+    post:
+      summary: Rollover expired API key (JWT only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expired_key_id, expiry]
+              properties:
+                expired_key_id:
+                  type: string
+                expiry:
+                  type: string
+                  enum: [1H, 1D, 1M, 1Y]
+      responses:
+        '201':
+          description: New key created
+  /wallet/deposit:
+    post:
+      summary: Initialize Paystack deposit
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount:
+                  type: integer
+                  description: Amount in kobo
+      responses:
+        '200':
+          description: Deposit initialized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reference:
+                    type: string
+                  authorization_url:
+                    type: string
+  /wallet/paystack/webhook:
+    post:
+      summary: Paystack webhook (must be from Paystack)
+      responses:
+        '200':
+          description: Acknowledged
+  /wallet/deposit/{reference}/status:
+    get:
+      summary: Check deposit status (no crediting)
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - in: path
+          name: reference
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deposit status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reference:
+                    type: string
+                  status:
+                    type: string
+                    enum: [pending, success, failed]
+                  amount:
+                    type: integer
+  /wallet/balance:
+    get:
+      summary: Get wallet balance
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: Wallet balance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  balance:
+                    type: integer
+                  wallet_number:
+                    type: string
+  /wallet/transfer:
+    post:
+      summary: Wallet-to-wallet transfer
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [wallet_number, amount]
+              properties:
+                wallet_number:
+                  type: string
+                amount:
+                  type: integer
+      responses:
+        '200':
+          description: Transfer completed
+  /wallet/transactions:
+    get:
+      summary: Transaction history
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
+      responses:
+        '200':
+          description: List of transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                    amount:
+                      type: integer
+                    status:
+                      type: string
+                    reference:
+                      type: string
+securitySchemes:
+  bearerAuth:
+    type: http
+    scheme: bearer
+    bearerFormat: JWT
+  apiKeyAuth:
+    type: apiKey
+    in: header
+    name: x-api-key
