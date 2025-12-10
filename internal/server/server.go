@@ -22,6 +22,37 @@ func SetupRouter(cfg config.Config, db *gorm.DB) *gin.Engine {
 	walletHandler := handlers.NewWalletHandler(walletService, paystack)
 
 	r := gin.Default()
+
+	// Lightweight Swagger UI backed by docs/swagger.yaml
+	r.StaticFile("/swagger.yaml", "docs/swagger.yaml")
+	r.GET("/docs", func(c *gin.Context) {
+		c.Header("Content-Type", "text/html")
+		c.String(200, `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Wallet Service API Docs</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+  <style>body { margin: 0; padding: 0; }</style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    window.onload = () => {
+      SwaggerUIBundle({
+        url: '/swagger.yaml',
+        dom_id: '#swagger-ui',
+        presets: [SwaggerUIBundle.presets.apis],
+        layout: "BaseLayout"
+      });
+    };
+  </script>
+</body>
+</html>
+		`)
+	})
+
 	r.GET("/auth/google", authHandler.StartGoogleAuth)
 	r.GET("/auth/google/callback", authHandler.GoogleCallback)
 
