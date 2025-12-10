@@ -5,6 +5,7 @@ info:
   description: Backend wallet with Google JWT auth, API keys, Paystack deposits, transfers, and history.
 servers:
   - url: http://localhost:8080
+  - url: https://wallet-service-cj9h.onrender.com
 security:
   - bearerAuth: []
   - apiKeyAuth: []
@@ -138,6 +139,13 @@ paths:
   /wallet/paystack/webhook:
     post:
       summary: Paystack webhook (must be from Paystack)
+      parameters:
+        - in: header
+          name: x-paystack-signature
+          required: true
+          schema:
+            type: string
+          description: HMAC-SHA512 of request body using PAYSTACK_SECRET_KEY
       responses:
         '200':
           description: Acknowledged
@@ -231,12 +239,14 @@ paths:
                       type: string
                     reference:
                       type: string
-securitySchemes:
-  bearerAuth:
-    type: http
-    scheme: bearer
-    bearerFormat: JWT
-  apiKeyAuth:
-    type: apiKey
-    in: header
-    name: x-api-key
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
