@@ -2,6 +2,9 @@
 
 Backend wallet service with Google JWT auth, API keys, Paystack deposits, webhook crediting, wallet transfers, balances, and transaction history.
 
+**Live API:** https://wallet-service-cj9h.onrender.com  
+**Swagger UI:** https://wallet-service-cj9h.onrender.com/docs (local dev: http://localhost:8080/docs)
+
 ## Stack
 - Go 1.22+
 - Gin HTTP framework
@@ -42,6 +45,22 @@ go run ./cmd/server
 ```
 Server starts on `:$PORT`, auto-migrating the schema.
 
+## Docker Compose (app + Postgres)
+```
+docker compose up -d --build
+```
+Ensure `.env` is populated (compose uses `env_file: .env`).
+
+## Authentication
+- JWT: Google OAuth flow → `/auth/google` then `/auth/google/callback` returns JWT.
+- API key: `x-api-key: <key>`; must be active, unexpired, and include required permission.
+- Permissions: `deposit`, `transfer`, `read`; max 5 active keys/user; expiry options `1H|1D|1M|1Y`.
+
+## Paystack
+- Deposits initialize Paystack checkout; only the webhook credits wallets.
+- Webhook URL: `/wallet/paystack/webhook` (server-to-server POST from Paystack).
+- Do **not** point the browser redirect/callback to the webhook; use a client-facing page.
+
 ## API (high level)
 - `GET /auth/google` – redirect to Google consent
 - `GET /auth/google/callback` – exchanges code, upserts user+wallet, returns JWT
@@ -71,9 +90,10 @@ Server starts on `:$PORT`, auto-migrating the schema.
 
 ## Docs
 - API: `docs/api.md`
-- OpenAPI: `docs/swagger.yaml`
+- OpenAPI: `docs/swagger.yaml` (live Swagger UI at `/docs` when the server is running; Render: https://wallet-service-cj9h.onrender.com/docs)
 - Deployment: `docs/deployment.md`
 - Testing & manual smoke: `docs/testing.md`
+ - Live Swagger: https://wallet-service-cj9h.onrender.com/docs
 
 ## Quick Smoke (after setting env + Postgres)
 ```
